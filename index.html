@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amazonセールガチャ</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background-color: #f4f6f8;
+      color: #333;
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      color: #ff9900;
+      font-size: 28px;
+      margin-bottom: 30px;
+    }
+    #gacha-btn {
+      background-color: #ff9900;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      padding: 15px 40px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s, background-color 0.2s;
+    }
+    #gacha-btn:hover {
+      background-color: #e68a00;
+      transform: translateY(-2px);
+    }
+    #gacha-btn:active {
+      transform: translateY(2px);
+    }
+    #loading {
+      display: none;
+      margin: 20px 0;
+      font-weight: bold;
+      color: #666;
+    }
+    #result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 10px;
+    }
+    .product-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: left;
+      transition: transform 0.2s;
+    }
+    .product-card:hover {
+      transform: translateY(-5px);
+    }
+    .product-image {
+      width: 100%;
+      height: 150px;
+      object-fit: contain;
+      margin-bottom: 15px;
+    }
+    .product-title {
+      font-size: 14px;
+      line-height: 1.4;
+      height: 40px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .product-price {
+      color: #B12704;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .product-link {
+      display: block;
+      text-align: center;
+      background-color: #ffd814;
+      color: #0f1111;
+      text-decoration: none;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    .product-link:hover {
+      background-color: #f7ca00;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎁 Amazonセールガチャ 🎁</h1>
+  <p>ボタンを押すと、セール情報からランダムで10個の商品が出現します！</p>
+  
+  <button id="gacha-btn">ガチャを回す！</button>
+  <div id="loading">✨ ガチャ演出中...（データ取得中） ✨</div>
+  
+  <div id="result-grid"></div>
+
+  <script>
+    document.getElementById('gacha-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('gacha-btn');
+      const loading = document.getElementById('loading');
+      const grid = document.getElementById('result-grid');
+
+      // UIの状態を更新（連打防止）
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      loading.style.display = 'block';
+      grid.innerHTML = '';
+
+      try {
+        // Cloudflareの裏側のAPIを叩く
+        const response = await fetch('/api/gacha');
+        
+        if (!response.ok) {
+          throw new Error(`サーバーエラー: ${response.status}`);
+        }
+        
+        const products = await response.json();
+
+        // 取得した商品をループしてHTML（カード）を生成
+        products.forEach(item => {
+          // APIのレスポンス構造に合わせて安全にデータを取得
+          const title = item.itemInfo?.title?.displayValue || '商品名不明';
+          const imageUrl = item.images?.primary?.small?.url || 'https://via.placeholder.com/150?text=No+Image';
+          
+          // ※価格情報はリソースの指定状況によって変わるため仮表示を含めています
+          const price = item.offers?.listings?.[0]?.price?.displayAmount || '価格を見る';
+          const itemUrl = item.detailPageURL || '#';
+
+          const cardHTML = `
+            <div class="product-card">
+              <img src="${imageUrl}" alt="商品画像" class="product-image">
+              <div class="product-title">${title}</div>
+              <div class="product-price">${price}</div>
+              <a href="${itemUrl}" target="_blank" rel="noopener noreferrer" class="product-link">Amazonで見る</a>
+            </div>
+          `;
+          grid.innerHTML += cardHTML;
+        });
+
+      } catch (error) {
+        console.error(error);
+        grid.innerHTML = `<p style="color:red; grid-column: 1 / -1;">エラーが発生しました。時間を置いて再度お試しください。<br>${error.message}</p>`;
+      } finally {
+        // UIの状態を元に戻す
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        loading.style.display = 'none';
+      }
+    });
+  </script>
+
+</body>
+</html>
